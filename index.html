@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimax Algorithm – Real-Life Decision Map</title>
+  <meta name="description" content="Interactive educational prototype demonstrating how the Minimax algorithm selects optimal routes when an adversarial environment makes the worst-case decisions.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="header-badge">
+          <span class="badge-icon">🧠</span>
+          <span class="badge-text">AI Game Theory & Pathfinding Simulation</span>
+        </div>
+        <h1 class="header-title">MINIMAX ALGORITHM – REAL-LIFE MAP SIMULATION</h1>
+        <p class="header-subtitle">
+          Learn how AI chooses the best decision when an opponent or hostile environment chooses the worst possible outcome.
+        </p>
+        <div class="role-tags">
+          <div class="role-pill role-max">
+            <span class="role-icon">▲</span>
+            <strong>MAX (Traveler / AI):</strong> Wants to <em>MAXIMIZE</em> route utility score
+          </div>
+          <div class="role-pill role-min">
+            <span class="role-icon">▼</span>
+            <strong>MIN (Adversarial Environment):</strong> Forces the <em>MINIMUM</em> utility outcome
+          </div>
+          <div class="role-pill role-terminal">
+            <span class="role-icon">🏁</span>
+            <strong>TERMINAL:</strong> Road utility scores evaluated at final route branches
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnQuickViva" class="btn btn-secondary btn-sm" title="Review common viva exam questions">
+          🎓 Viva Quick Guide
+        </button>
+        <button id="btnEditValues" class="btn btn-secondary btn-sm" title="Customize terminal road values">
+          ⚙️ Customize Values
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <main class="main-content">
+      <!-- Left Side: Interactive Map & Tree Visualizer -->
+      <section class="visualizer-section">
+        <div class="card visualizer-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2 class="card-title">Interactive Navigation & Decision Map</h2>
+              <span class="view-indicator" id="currentViewLabel">Real-Life Road Map</span>
+            </div>
+            <div class="view-toggle-group" role="tablist">
+              <button id="tabMapView" class="toggle-tab active" role="tab" aria-selected="true">
+                🗺️ Road Map
+              </button>
+              <button id="tabTreeView" class="toggle-tab" role="tab" aria-selected="false">
+                🌳 Game Tree
+              </button>
+              <button id="tabDualView" class="toggle-tab" role="tab" aria-selected="false">
+                🔀 Split View
+              </button>
+            </div>
+          </div>
+
+          <!-- SVG Canvas Container -->
+          <div class="svg-viewport-wrapper" id="viewportWrapper">
+            <!-- Road Map SVG View -->
+            <div class="svg-view active" id="mapViewContainer">
+              <svg id="mapSvg" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <!-- Background Gradients & Filters -->
+                  <linearGradient id="mapBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0f172a" />
+                    <stop offset="50%" stop-color="#111c38" />
+                    <stop offset="100%" stop-color="#090d16" />
+                  </linearGradient>
+
+                  <linearGradient id="roadBaseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#334155" />
+                    <stop offset="100%" stop-color="#475569" />
+                  </linearGradient>
+
+                  <linearGradient id="optimalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#10b981" />
+                    <stop offset="50%" stop-color="#34d399" />
+                    <stop offset="100%" stop-color="#059669" />
+                  </linearGradient>
+
+                  <linearGradient id="evalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#f59e0b" />
+                    <stop offset="100%" stop-color="#fbbf24" />
+                  </linearGradient>
+
+                  <!-- Glow Filters -->
+                  <filter id="glowMax" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <filter id="glowMin" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <filter id="glowOptimal" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="8" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.4" />
+                  </filter>
+
+                  <!-- Map Patterns -->
+                  <pattern id="cityGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.8" stroke-opacity="0.5"/>
+                  </pattern>
+                </defs>
+
+                <!-- Map Background Layer -->
+                <rect width="960" height="560" fill="url(#mapBgGrad)" rx="12" />
+                <rect width="960" height="560" fill="url(#cityGrid)" rx="12" />
+
+                <!-- Stylized Geographic Landmarks / Zones -->
+                <g id="mapLandmarks" opacity="0.35">
+                  <!-- River feature -->
+                  <path d="M 480 0 C 490 140, 440 280, 480 420 C 500 490, 520 530, 530 560" 
+                        fill="none" stroke="#1e3a8a" stroke-width="32" stroke-linecap="round" />
+                  <path d="M 480 0 C 490 140, 440 280, 480 420 C 500 490, 520 530, 530 560" 
+                        fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round" stroke-dasharray="12 8" />
+                  
+                  <!-- Region labels -->
+                  <text x="210" y="45" fill="#475569" font-size="11" font-weight="600" letter-spacing="2">METRO DEPARTURE ZONE</text>
+                  <text x="440" y="545" fill="#38bdf8" font-size="10" font-weight="600" letter-spacing="1">RIVER CANYON</text>
+                  <text x="710" y="45" fill="#475569" font-size="11" font-weight="600" letter-spacing="2">DESTINATION TERMINAL SECTOR</text>
+                </g>
+
+                <!-- Road Network Layer (Background & Base Roads) -->
+                <g id="roadNetwork">
+                  <!-- Level 1 Roads: HOME -> A, B, C -->
+                  <path id="path_HOME_A" class="road-path base-road" d="M 100 280 C 180 280, 220 130, 310 130" />
+                  <path id="path_HOME_B" class="road-path base-road" d="M 100 280 L 310 280" />
+                  <path id="path_HOME_C" class="road-path base-road" d="M 100 280 C 180 280, 220 430, 310 430" />
+
+                  <!-- Level 2 Roads: A -> A1, A2 (Waypoint D corridor) -->
+                  <path id="path_A_A1" class="road-path base-road" d="M 310 130 C 400 130, 480 80, 570 80" />
+                  <path id="path_A_A2" class="road-path base-road" d="M 310 130 C 400 130, 480 175, 570 175" />
+
+                  <!-- Level 2 Roads: B -> B1, B2 (Waypoint E corridor) -->
+                  <path id="path_B_B1" class="road-path base-road" d="M 310 280 C 400 280, 480 235, 570 235" />
+                  <path id="path_B_B2" class="road-path base-road" d="M 310 280 C 400 280, 480 325, 570 325" />
+
+                  <!-- Level 2 Roads: C -> C1, C2 (Waypoint F corridor) -->
+                  <path id="path_C_C1" class="road-path base-road" d="M 310 430 C 400 430, 480 385, 570 385" />
+                  <path id="path_C_C2" class="road-path base-road" d="M 310 430 C 400 430, 480 480, 570 480" />
+
+                  <!-- Level 3 Roads: Terminals -> DESTINATION -->
+                  <path id="path_A1_DEST" class="road-path base-road terminal-road" d="M 570 80 C 680 80, 780 280, 860 280" />
+                  <path id="path_A2_DEST" class="road-path base-road terminal-road" d="M 570 175 C 680 175, 770 280, 860 280" />
+                  <path id="path_B1_DEST" class="road-path base-road terminal-road" d="M 570 235 C 680 235, 760 280, 860 280" />
+                  <path id="path_B2_DEST" class="road-path base-road terminal-road" d="M 570 325 C 680 325, 760 280, 860 280" />
+                  <path id="path_C1_DEST" class="road-path base-road terminal-road" d="M 570 385 C 680 385, 770 280, 860 280" />
+                  <path id="path_C2_DEST" class="road-path base-road terminal-road" d="M 570 480 C 680 480, 780 280, 860 280" />
+
+                  <!-- Road Centerlines (Dashed lane markers) -->
+                  <path class="road-centerline" d="M 100 280 C 180 280, 220 130, 310 130" />
+                  <path class="road-centerline" d="M 100 280 L 310 280" />
+                  <path class="road-centerline" d="M 100 280 C 180 280, 220 430, 310 430" />
+                  <path class="road-centerline" d="M 310 130 C 400 130, 480 80, 570 80" />
+                  <path class="road-centerline" d="M 310 130 C 400 130, 480 175, 570 175" />
+                  <path class="road-centerline" d="M 310 280 C 400 280, 480 235, 570 235" />
+                  <path class="road-centerline" d="M 310 280 C 400 280, 480 325, 570 325" />
+                  <path class="road-centerline" d="M 310 430 C 400 430, 480 385, 570 385" />
+                  <path class="road-centerline" d="M 310 430 C 400 430, 480 480, 570 480" />
+                  <path class="road-centerline" d="M 570 80 C 680 80, 780 280, 860 280" />
+                  <path class="road-centerline" d="M 570 175 C 680 175, 770 280, 860 280" />
+                  <path class="road-centerline" d="M 570 235 C 680 235, 760 280, 860 280" />
+                  <path class="road-centerline" d="M 570 325 C 680 325, 760 280, 860 280" />
+                  <path class="road-centerline" d="M 570 385 C 680 385, 770 280, 860 280" />
+                  <path class="road-centerline" d="M 570 480 C 680 480, 780 280, 860 280" />
+                </g>
+
+                <!-- Road Highway Labels -->
+                <g id="roadBadges" class="road-labels">
+                  <text class="road-name" x="200" y="185">Express Route A</text>
+                  <text class="road-name" x="200" y="270">Central Route B</text>
+                  <text class="road-name" x="200" y="380">South Route C</text>
+
+                  <text class="road-sub" x="430" y="90">A1 (Clearway)</text>
+                  <text class="road-sub" x="430" y="165">A2 (Bottleneck)</text>
+
+                  <text class="road-sub" x="430" y="245">B1 (Parkway)</text>
+                  <text class="road-sub" x="430" y="320">B2 (Detour)</text>
+
+                  <text class="road-sub" x="430" y="395">C1 (Hazard)</text>
+                  <text class="road-sub" x="430" y="470">C2 (Scenic)</text>
+                </g>
+
+                <!-- Animated Route Highlight Overlays -->
+                <g id="highlightOverlay"></g>
+
+                <!-- Map Decision Nodes Layer -->
+                <g id="mapNodes">
+                  <!-- START NODE: HOME (MAX) -->
+                  <g id="node_map_HOME" class="map-node node-max" transform="translate(100, 280)">
+                    <circle class="node-halo" r="32" />
+                    <circle class="node-body" r="26" />
+                    <text class="node-icon" y="-2">🏠</text>
+                    <text class="node-title" y="42">HOME</text>
+                    <g class="badge-role badge-max" transform="translate(0, -32)">
+                      <rect x="-24" y="-10" width="48" height="20" rx="10" />
+                      <text y="3">MAX</text>
+                    </g>
+                    <g class="badge-score" id="score_map_HOME" transform="translate(0, 24)" style="display:none;">
+                      <rect x="-18" y="-9" width="36" height="18" rx="9" />
+                      <text class="score-val" y="3">?</text>
+                    </g>
+                  </g>
+
+                  <!-- JUNCTION A (MIN) -->
+                  <g id="node_map_A" class="map-node node-min" transform="translate(310, 130)">
+                    <circle class="node-halo" r="28" />
+                    <circle class="node-body" r="22" />
+                    <text class="node-icon" y="-1">⚠️</text>
+                    <text class="node-title" y="38">JUNCTION A</text>
+                    <g class="badge-role badge-min" transform="translate(0, -28)">
+                      <rect x="-22" y="-9" width="44" height="18" rx="9" />
+                      <text y="3">MIN</text>
+                    </g>
+                    <g class="badge-score" id="score_map_A" transform="translate(0, 20)" style="display:none;">
+                      <rect x="-16" y="-8" width="32" height="16" rx="8" />
+                      <text class="score-val" y="3">?</text>
+                    </g>
+                  </g>
+
+                  <!-- JUNCTION B (MIN) -->
+                  <g id="node_map_B" class="map-node node-min" transform="translate(310, 280)">
+                    <circle class="node-halo" r="28" />
+                    <circle class="node-body" r="22" />
+                    <text class="node-icon" y="-1">⚠️</text>
+                    <text class="node-title" y="38">JUNCTION B</text>
+                    <g class="badge-role badge-min" transform="translate(0, -28)">
+                      <rect x="-22" y="-9" width="44" height="18" rx="9" />
+                      <text y="3">MIN</text>
+                    </g>
+                    <g class="badge-score" id="score_map_B" transform="translate(0, 20)" style="display:none;">
+                      <rect x="-16" y="-8" width="32" height="16" rx="8" />
+                      <text class="score-val" y="3">?</text>
+                    </g>
+                  </g>
+
+                  <!-- JUNCTION C (MIN) -->
+                  <g id="node_map_C" class="map-node node-min" transform="translate(310, 430)">
+                    <circle class="node-halo" r="28" />
+                    <circle class="node-body" r="22" />
+                    <text class="node-icon" y="-1">⚠️</text>
+                    <text class="node-title" y="38">JUNCTION C</text>
+                    <g class="badge-role badge-min" transform="translate(0, -28)">
+                      <rect x="-22" y="-9" width="44" height="18" rx="9" />
+                      <text y="3">MIN</text>
+                    </g>
+                    <g class="badge-score" id="score_map_C" transform="translate(0, 20)" style="display:none;">
+                      <rect x="-16" y="-8" width="32" height="16" rx="8" />
+                      <text class="score-val" y="3">?</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL A1 (D1) -->
+                  <g id="node_map_A1" class="map-node node-terminal" transform="translate(570, 80)">
+                    <circle class="node-halo" r="24" />
+                    <circle class="node-body" r="18" />
+                    <text class="node-score-static" y="5">8</text>
+                    <text class="node-title" y="32">A1 (Waypt D)</text>
+                    <g class="badge-role badge-term" transform="translate(0, -24)">
+                      <rect x="-20" y="-8" width="40" height="16" rx="8" />
+                      <text y="3">LEAF</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL A2 (D2) -->
+                  <g id="node_map_A2" class="map-node node-terminal" transform="translate(570, 175)">
+                    <circle class="node-halo" r="24" />
+                    <circle class="node-body" r="18" />
+                    <text class="node-score-static" y="5">6</text>
+                    <text class="node-title" y="32">A2</text>
+                    <g class="badge-role badge-term" transform="translate(0, -24)">
+                      <rect x="-20" y="-8" width="40" height="16" rx="8" />
+                      <text y="3">LEAF</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL B1 (E1) -->
+                  <g id="node_map_B1" class="map-node node-terminal" transform="translate(570, 235)">
+                    <circle class="node-halo" r="24" />
+                    <circle class="node-body" r="18" />
+                    <text class="node-score-static" y="5">5</text>
+                    <text class="node-title" y="32">B1 (Waypt E)</text>
+                    <g class="badge-role badge-term" transform="translate(0, -24)">
+                      <rect x="-20" y="-8" width="40" height="16" rx="8" />
+                      <text y="3">LEAF</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL B2 (E2) -->
+                  <g id="node_map_B2" class="map-node node-terminal" transform="translate(570, 325)">
+                    <circle class="node-halo" r="24" />
+                    <circle class="node-body" r="18" />
+                    <text class="node-score-static" y="5">4</text>
+                    <text class="node-title" y="32">B2</text>
+                    <g class="badge-role badge-term" transform="translate(0, -24)">
+                      <rect x="-20" y="-8" width="40" height="16" rx="8" />
+                      <text y="3">LEAF</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL C1 (F1) -->
+                  <g id="node_map_C1" class="map-node node-terminal" transform="translate(570, 385)">
+                    <circle class="node-halo" r="24" />
+                    <circle class="node-body" r="18" />
+                    <text class="node-score-static" y="5">3</text>
+                    <text class="node-title" y="32">C1 (Waypt F)</text>
+                    <g class="badge-role badge-term" transform="translate(0, -24)">
+                      <rect x="-20" y="-8" width="40" height="16" rx="8" />
+                      <text y="3">LEAF</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL C2 (F2) -->
+                  <g id="node_map_C2" class="map-node node-terminal" transform="translate(570, 480)">
+                    <circle class="node-halo" r="24" />
+                    <circle class="node-body" r="18" />
+                    <text class="node-score-static" y="5">7</text>
+                    <text class="node-title" y="32">C2</text>
+                    <g class="badge-role badge-term" transform="translate(0, -24)">
+                      <rect x="-20" y="-8" width="40" height="16" rx="8" />
+                      <text y="3">LEAF</text>
+                    </g>
+                  </g>
+
+                  <!-- END NODE: DESTINATION -->
+                  <g id="node_map_DEST" class="map-node node-dest" transform="translate(860, 280)">
+                    <circle class="node-halo" r="32" />
+                    <circle class="node-body" r="26" />
+                    <text class="node-icon" y="-2">🏁</text>
+                    <text class="node-title" y="42">DESTINATION</text>
+                    <g class="badge-role badge-dest" transform="translate(0, -32)">
+                      <rect x="-34" y="-10" width="68" height="20" rx="10" />
+                      <text y="3">DESTINATION</text>
+                    </g>
+                  </g>
+                </g>
+
+                <!-- Floating Calculation Callout Popup Layer -->
+                <g id="mapCalcPopup" class="calc-popup-group" style="display:none; pointer-events:none;">
+                  <rect class="popup-box" x="-75" y="-60" width="150" height="48" rx="8" filter="url(#cardShadow)" />
+                  <text class="popup-text-op" x="0" y="-38">MIN(8, 6)</text>
+                  <text class="popup-text-res" x="0" y="-20">➔ Result: 6</text>
+                </g>
+              </svg>
+            </div>
+
+            <!-- Classical Game Tree SVG View -->
+            <div class="svg-view" id="treeViewContainer">
+              <svg id="treeSvg" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid meet">
+                <rect width="960" height="560" fill="url(#mapBgGrad)" rx="12" />
+                <rect width="960" height="560" fill="url(#cityGrid)" rx="12" />
+
+                <!-- Tree Level Markers & Labels -->
+                <g class="tree-level-guides">
+                  <line x1="80" y1="80" x2="880" y2="80" stroke="#334155" stroke-dasharray="4 6" opacity="0.4" />
+                  <line x1="80" y1="240" x2="880" y2="240" stroke="#334155" stroke-dasharray="4 6" opacity="0.4" />
+                  <line x1="80" y1="440" x2="880" y2="440" stroke="#334155" stroke-dasharray="4 6" opacity="0.4" />
+
+                  <text x="90" y="75" fill="#818cf8" font-size="12" font-weight="700">LEVEL 0: MAX (Traveler AI — Picks MAX)</text>
+                  <text x="90" y="235" fill="#f59e0b" font-size="12" font-weight="700">LEVEL 1: MIN (Adversary / Opponent — Picks MIN)</text>
+                  <text x="90" y="435" fill="#10b981" font-size="12" font-weight="700">LEVEL 2: TERMINAL (Route Utility / Payoffs)</text>
+                </g>
+
+                <!-- Tree Edges -->
+                <g id="treeEdges">
+                  <!-- Root HOME -> A, B, C -->
+                  <path id="tEdge_HOME_A" class="tree-edge" d="M 480 90 L 220 240" />
+                  <path id="tEdge_HOME_B" class="tree-edge" d="M 480 90 L 480 240" />
+                  <path id="tEdge_HOME_C" class="tree-edge" d="M 480 90 L 740 240" />
+
+                  <!-- A -> A1, A2 -->
+                  <path id="tEdge_A_A1" class="tree-edge" d="M 220 240 L 160 440" />
+                  <path id="tEdge_A_A2" class="tree-edge" d="M 220 240 L 280 440" />
+
+                  <!-- B -> B1, B2 -->
+                  <path id="tEdge_B_B1" class="tree-edge" d="M 480 240 L 420 440" />
+                  <path id="tEdge_B_B2" class="tree-edge" d="M 480 240 L 540 440" />
+
+                  <!-- C -> C1, C2 -->
+                  <path id="tEdge_C_C1" class="tree-edge" d="M 740 240 L 680 440" />
+                  <path id="tEdge_C_C2" class="tree-edge" d="M 740 240 L 800 440" />
+                </g>
+
+                <!-- Tree Nodes Layer -->
+                <g id="treeNodes">
+                  <!-- ROOT: HOME (MAX) -->
+                  <g id="node_tree_HOME" class="tree-node node-max" transform="translate(480, 90)">
+                    <polygon class="node-shape-max" points="0,-28 26,20 -26,20" />
+                    <text class="node-title" y="4">HOME</text>
+                    <text class="node-type-sub" y="36">MAX</text>
+                    <g class="badge-score" id="score_tree_HOME" transform="translate(36, -8)" style="display:none;">
+                      <rect x="-16" y="-10" width="32" height="20" rx="6" fill="#818cf8" />
+                      <text class="score-val" y="4" fill="#0f172a" font-weight="800">?</text>
+                    </g>
+                  </g>
+
+                  <!-- MIN A -->
+                  <g id="node_tree_A" class="tree-node node-min" transform="translate(220, 240)">
+                    <polygon class="node-shape-min" points="0,28 26,-20 -26,-20" />
+                    <text class="node-title" y="-2">A</text>
+                    <text class="node-type-sub" y="38">MIN</text>
+                    <g class="badge-score" id="score_tree_A" transform="translate(36, 0)" style="display:none;">
+                      <rect x="-16" y="-10" width="32" height="20" rx="6" fill="#f59e0b" />
+                      <text class="score-val" y="4" fill="#0f172a" font-weight="800">?</text>
+                    </g>
+                  </g>
+
+                  <!-- MIN B -->
+                  <g id="node_tree_B" class="tree-node node-min" transform="translate(480, 240)">
+                    <polygon class="node-shape-min" points="0,28 26,-20 -26,-20" />
+                    <text class="node-title" y="-2">B</text>
+                    <text class="node-type-sub" y="38">MIN</text>
+                    <g class="badge-score" id="score_tree_B" transform="translate(36, 0)" style="display:none;">
+                      <rect x="-16" y="-10" width="32" height="20" rx="6" fill="#f59e0b" />
+                      <text class="score-val" y="4" fill="#0f172a" font-weight="800">?</text>
+                    </g>
+                  </g>
+
+                  <!-- MIN C -->
+                  <g id="node_tree_C" class="tree-node node-min" transform="translate(740, 240)">
+                    <polygon class="node-shape-min" points="0,28 26,-20 -26,-20" />
+                    <text class="node-title" y="-2">C</text>
+                    <text class="node-type-sub" y="38">MIN</text>
+                    <g class="badge-score" id="score_tree_C" transform="translate(36, 0)" style="display:none;">
+                      <rect x="-16" y="-10" width="32" height="20" rx="6" fill="#f59e0b" />
+                      <text class="score-val" y="4" fill="#0f172a" font-weight="800">?</text>
+                    </g>
+                  </g>
+
+                  <!-- TERMINAL A1 -->
+                  <g id="node_tree_A1" class="tree-node node-terminal" transform="translate(160, 440)">
+                    <rect class="node-shape-term" x="-20" y="-18" width="40" height="36" rx="6" />
+                    <text class="node-title node-score-static" y="6">8</text>
+                    <text class="node-sublabel" y="30">A1</text>
+                  </g>
+
+                  <!-- TERMINAL A2 -->
+                  <g id="node_tree_A2" class="tree-node node-terminal" transform="translate(280, 440)">
+                    <rect class="node-shape-term" x="-20" y="-18" width="40" height="36" rx="6" />
+                    <text class="node-title node-score-static" y="6">6</text>
+                    <text class="node-sublabel" y="30">A2</text>
+                  </g>
+
+                  <!-- TERMINAL B1 -->
+                  <g id="node_tree_B1" class="tree-node node-terminal" transform="translate(420, 440)">
+                    <rect class="node-shape-term" x="-20" y="-18" width="40" height="36" rx="6" />
+                    <text class="node-title node-score-static" y="6">5</text>
+                    <text class="node-sublabel" y="30">B1</text>
+                  </g>
+
+                  <!-- TERMINAL B2 -->
+                  <g id="node_tree_B2" class="tree-node node-terminal" transform="translate(540, 440)">
+                    <rect class="node-shape-term" x="-20" y="-18" width="40" height="36" rx="6" />
+                    <text class="node-title node-score-static" y="6">4</text>
+                    <text class="node-sublabel" y="30">B2</text>
+                  </g>
+
+                  <!-- TERMINAL C1 -->
+                  <g id="node_tree_C1" class="tree-node node-terminal" transform="translate(680, 440)">
+                    <rect class="node-shape-term" x="-20" y="-18" width="40" height="36" rx="6" />
+                    <text class="node-title node-score-static" y="6">3</text>
+                    <text class="node-sublabel" y="30">C1</text>
+                  </g>
+
+                  <!-- TERMINAL C2 -->
+                  <g id="node_tree_C2" class="tree-node node-terminal" transform="translate(800, 440)">
+                    <rect class="node-shape-term" x="-20" y="-18" width="40" height="36" rx="6" />
+                    <text class="node-title node-score-static" y="6">7</text>
+                    <text class="node-sublabel" y="30">C2</text>
+                  </g>
+                </g>
+
+                <!-- Floating Tree Calc Bubble -->
+                <g id="treeCalcPopup" class="calc-popup-group" style="display:none; pointer-events:none;">
+                  <rect class="popup-box" x="-75" y="-55" width="150" height="45" rx="8" filter="url(#cardShadow)" />
+                  <text class="popup-text-op" x="0" y="-34">MIN(8, 6)</text>
+                  <text class="popup-text-res" x="0" y="-18">➔ 6</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Visualizer Legend -->
+          <div class="map-legend">
+            <div class="legend-item"><span class="legend-dot dot-max"></span> MAX (AI)</div>
+            <div class="legend-item"><span class="legend-dot dot-min"></span> MIN (Opponent)</div>
+            <div class="legend-item"><span class="legend-dot dot-term"></span> Terminal Utility</div>
+            <div class="legend-item"><span class="legend-dot dot-eval"></span> Evaluating Now</div>
+            <div class="legend-item"><span class="legend-dot dot-opt"></span> Optimal Route</div>
+            <div class="legend-item"><span class="legend-dot dot-rej"></span> Rejected Route</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Side: Explanation, Formulas & Viva Guidance -->
+      <aside class="sidebar-section">
+        <!-- Live "What's Happening?" Panel -->
+        <div class="card explanation-card">
+          <div class="card-header border-bottom">
+            <h3 class="panel-heading">
+              <span class="pulse-indicator"></span>
+              What's Happening?
+            </h3>
+            <span class="step-badge" id="stepCounterBadge">Ready to Start</span>
+          </div>
+          <div class="card-body">
+            <div class="live-status-block">
+              <div class="status-meta-row">
+                <span class="status-label">Current Node:</span>
+                <span class="status-value-highlight" id="liveNodeName">—</span>
+                <span class="status-tag" id="liveNodeTypeTag">IDLE</span>
+              </div>
+              <div class="calc-display-box" id="liveCalcBox">
+                <div class="calc-label">Minimax Calculation:</div>
+                <div class="calc-formula" id="liveCalcFormula">Press "Start Minimax" to begin</div>
+                <div class="calc-result" id="liveCalcResult">Waiting for input...</div>
+              </div>
+              <p class="live-explanation-text" id="liveExplanationText">
+                The Minimax algorithm will explore route options from the bottom leaves upwards, calculating the guaranteed worst-case outcomes for each candidate decision.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Life Scenario Meaning Card -->
+        <div class="card scenario-card">
+          <div class="card-header border-bottom">
+            <h3 class="panel-heading">🗺️ Real-Life Scenario Meaning</h3>
+          </div>
+          <div class="card-body scenario-body">
+            <p><strong>Imagine an autonomous vehicle planning a route from HOME to DESTINATION:</strong></p>
+            <ul class="scenario-bullets">
+              <li>
+                <span class="bullet-tag tag-max">MAX (The AI):</span>
+                Wants the best journey (highest speed, safety, and comfort score).
+              </li>
+              <li>
+                <span class="bullet-tag tag-min">MIN (Adversarial Environment):</span>
+                Represents unpredictable hostile conditions (sudden traffic gridlock, weather hazards, construction detours) that force the AI into the worst branch of that corridor.
+              </li>
+              <li>
+                <span class="bullet-tag tag-core">Minimax Strategy:</span>
+                The AI does <em>not</em> blindly hope for the maximum score (8). Instead, it assumes the environment will choose the worst outcome at every turn. It therefore picks the path whose <strong>worst-case outcome is the highest</strong> (Maximum of the Minimums).
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Live Math & Formulas Card -->
+        <div class="card formula-card">
+          <div class="card-header border-bottom">
+            <h3 class="panel-heading">📐 Formula & Evaluation State</h3>
+          </div>
+          <div class="card-body">
+            <div class="formula-rule">
+              <span class="rule-title">MIN Node:</span>
+              <code>Value(node) = MIN(child values)</code>
+            </div>
+            <div class="formula-rule">
+              <span class="rule-title">MAX Node:</span>
+              <code>Value(node) = MAX(child values)</code>
+            </div>
+            <div class="formula-progress-table">
+              <div class="table-row" id="row_A">
+                <span class="row-target">A (MIN):</span>
+                <span class="row-calc">MIN(8, 6)</span>
+                <span class="row-result" id="res_table_A">= ?</span>
+              </div>
+              <div class="table-row" id="row_B">
+                <span class="row-target">B (MIN):</span>
+                <span class="row-calc">MIN(5, 4)</span>
+                <span class="row-result" id="res_table_B">= ?</span>
+              </div>
+              <div class="table-row" id="row_C">
+                <span class="row-target">C (MIN):</span>
+                <span class="row-calc">MIN(3, 7)</span>
+                <span class="row-result" id="res_table_C">= ?</span>
+              </div>
+              <div class="table-row row-final" id="row_HOME">
+                <span class="row-target">HOME (MAX):</span>
+                <span class="row-calc">MAX(A, B, C)</span>
+                <span class="row-result" id="res_table_HOME">= ?</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Final Decision Result Card (Populates at Step 10) -->
+        <div class="card result-card" id="finalResultCard" style="display:none;">
+          <div class="result-header">
+            <span class="result-icon">🏆</span>
+            <div>
+              <h3 class="result-title">MINIMAX DECISION FOUND</h3>
+              <p class="result-subtitle">Optimal Worst-Case Navigation Path Selected</p>
+            </div>
+          </div>
+          <div class="result-body">
+            <div class="result-highlight-badge">
+              <span>AI Selected: <strong>ROUTE A</strong></span>
+              <span>Final Guaranteed Utility: <strong>6</strong></span>
+            </div>
+            <p class="result-path-spec">
+              <strong>Chosen Path:</strong> HOME ➔ Junction A ➔ Route A2 ➔ DESTINATION
+            </p>
+            <p class="result-text" id="finalExplanationText">
+              The AI selects Route A because its guaranteed worst-case outcome (6) is strictly superior to the worst-case outcomes of Route B (4) and Route C (3).
+            </p>
+            <div class="result-note">
+              💡 <em>Important: Route A is not selected because it is physically the shortest road, but because its Minimax utility under adversarial conditions is mathematically optimal.</em>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Step-by-Step Execution & Control Panel -->
+    <footer class="bottom-panel">
+      <div class="controls-toolbar">
+        <div class="playback-buttons">
+          <button id="btnStart" class="btn btn-primary" title="Start simulation from step 1">
+            ▶ Start Minimax
+          </button>
+          <button id="btnPrev" class="btn btn-secondary" disabled title="Go back one step">
+            ⏮ Previous Step
+          </button>
+          <button id="btnNext" class="btn btn-secondary" disabled title="Advance one step">
+            ⏭ Next Step
+          </button>
+          <button id="btnAutoPlay" class="btn btn-accent" title="Play through all steps automatically">
+            ⏩ Auto Play
+          </button>
+          <button id="btnReset" class="btn btn-outline" title="Reset map to initial state">
+            🔄 Reset
+          </button>
+          <button id="btnShowFull" class="btn btn-outline" title="Evaluate complete tree instantly">
+            ⚡ Show Full Calculation
+          </button>
+        </div>
+
+        <div class="playback-settings">
+          <label for="speedSelect" class="settings-label">Speed:</label>
+          <select id="speedSelect" class="select-dropdown">
+            <option value="1800">0.75x (Relaxed)</option>
+            <option value="1100" selected>1.0x (Normal)</option>
+            <option value="600">1.8x (Fast)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Educational Step Tracker -->
+      <div class="step-tracker-bar">
+        <div class="tracker-col tracker-step">
+          <span class="tracker-label">CURRENT STEP</span>
+          <span class="tracker-value" id="trackerStepNum">0 / 10</span>
+        </div>
+        <div class="tracker-col tracker-hierarchy">
+          <span class="tracker-label">ALGORITHM LAYER</span>
+          <div class="layer-pills">
+            <span class="layer-pill" id="layerMax">MAX</span>
+            <span class="layer-arrow">➔</span>
+            <span class="layer-pill" id="layerMin">MIN</span>
+            <span class="layer-arrow">➔</span>
+            <span class="layer-pill" id="layerTerm">Terminal</span>
+          </div>
+        </div>
+        <div class="tracker-col tracker-node">
+          <span class="tracker-label">CURRENT NODE</span>
+          <span class="tracker-value" id="trackerCurrentNode">None</span>
+        </div>
+        <div class="tracker-col tracker-op">
+          <span class="tracker-label">OPERATION</span>
+          <span class="tracker-value font-mono" id="trackerOperation">—</span>
+        </div>
+        <div class="tracker-col tracker-res">
+          <span class="tracker-label">RESULT</span>
+          <span class="tracker-value font-mono highlight-res" id="trackerResult">—</span>
+        </div>
+        <div class="tracker-col tracker-summary">
+          <span class="tracker-label">EDUCATIONAL INSIGHT</span>
+          <span class="tracker-summary-text" id="trackerSummaryText">
+            Click "Start Minimax" or "Next Step" to trace algorithm execution step by step.
+          </span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Viva Examination Modal -->
+    <div class="modal-backdrop" id="vivaModal" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-icon">🎓</span>
+            <h2 class="modal-title">Minimax Viva Examination Preparation</h2>
+          </div>
+          <button id="btnCloseViva" class="btn-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="viva-intro">
+            Key questions and clear, concise answers prepared for academic viva presentations and exams:
+          </p>
+          <div class="viva-qa-list">
+            <details class="viva-item" open>
+              <summary class="viva-q">1. What is the Minimax algorithm?</summary>
+              <div class="viva-a">
+                Minimax is a recursive decision-making algorithm from game theory used in two-player, zero-sum games of perfect information. It determines the optimal strategy for an agent (MAX) by anticipating that the adversarial opponent (MIN) will play optimally to minimize MAX's outcome.
+              </div>
+            </details>
+
+            <details class="viva-item">
+              <summary class="viva-q">2. Why is MAX used?</summary>
+              <div class="viva-a">
+                MAX represents the decision-maker or AI agent. Its goal is to maximize its own utility or payoff score, choosing the alternative that provides the highest guaranteed reward.
+              </div>
+            </details>
+
+            <details class="viva-item">
+              <summary class="viva-q">3. Why is MIN used?</summary>
+              <div class="viva-a">
+                MIN represents the adversarial opponent or hostile environment. MIN aims to minimize the traveler's utility. By assuming MIN always picks the lowest value, the AI protects itself against worst-case surprises.
+              </div>
+            </details>
+
+            <details class="viva-item">
+              <summary class="viva-q">4. What is a terminal node?</summary>
+              <div class="viva-a">
+                A terminal node (leaf node) represents the end state of a decision branch where no further actions are available. It contains a static utility score or heuristic evaluation value representing how favorable that final state is.
+              </div>
+            </details>
+
+            <details class="viva-item">
+              <summary class="viva-q">5. How does the algorithm select the final move?</summary>
+              <div class="viva-a">
+                The algorithm works bottom-up (post-order traversal): terminal nodes pass values to parent MIN nodes (which pick the minimum of child scores), and parent MIN nodes pass their backed-up values to the root MAX node (which picks the maximum). The root then selects the branch corresponding to that maximum backed-up value.
+              </div>
+            </details>
+
+            <details class="viva-item">
+              <summary class="viva-q">6. What happens if two routes have the exact same value?</summary>
+              <div class="viva-a">
+                If multiple routes tie with identical Minimax utility scores, the AI can employ tie-breaking criteria such as secondary real-world metrics (e.g., physical distance, fuel consumption, fewer lane shifts) or arbitrarily choose the first encountered optimal branch.
+              </div>
+            </details>
+
+            <details class="viva-item">
+              <summary class="viva-q">7. Why does Minimax consider the opponent's worst possible decision?</summary>
+              <div class="viva-a">
+                This reflects the principle of <em>risk aversion</em> and optimal defensive play. If MAX assumed the opponent would play poorly and chose an optimistic route (like Route A1 with score 8), the opponent could force a catastrophic outcome. By preparing for the worst-case scenario, the agent guarantees a lower bound on performance.
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Terminal Score Customizer Modal -->
+    <div class="modal-backdrop" id="customizerModal" style="display:none;">
+      <div class="modal-card modal-sm">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-icon">⚙️</span>
+            <h2 class="modal-title">Customize Terminal Route Values</h2>
+          </div>
+          <button id="btnCloseCustomizer" class="btn-close" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="customizer-intro">
+            Change terminal utility scores to test different Minimax outcomes during demonstrations:
+          </p>
+          <div class="customizer-grid">
+            <div class="custom-field">
+              <label for="val_A1">Route A1 (Branch D1):</label>
+              <input type="number" id="val_A1" value="8" min="0" max="20" class="input-number">
+            </div>
+            <div class="custom-field">
+              <label for="val_A2">Route A2 (Branch D2):</label>
+              <input type="number" id="val_A2" value="6" min="0" max="20" class="input-number">
+            </div>
+            <div class="custom-field">
+              <label for="val_B1">Route B1 (Branch E1):</label>
+              <input type="number" id="val_B1" value="5" min="0" max="20" class="input-number">
+            </div>
+            <div class="custom-field">
+              <label for="val_B2">Route B2 (Branch E2):</label>
+              <input type="number" id="val_B2" value="4" min="0" max="20" class="input-number">
+            </div>
+            <div class="custom-field">
+              <label for="val_C1">Route C1 (Branch F1):</label>
+              <input type="number" id="val_C1" value="3" min="0" max="20" class="input-number">
+            </div>
+            <div class="custom-field">
+              <label for="val_C2">Route C2 (Branch F2):</label>
+              <input type="number" id="val_C2" value="7" min="0" max="20" class="input-number">
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button id="btnApplyCustom" class="btn btn-primary">Apply & Recalculate</button>
+            <button id="btnResetCustom" class="btn btn-outline">Restore Defaults (8,6,5,4,3,7)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
